@@ -33,6 +33,23 @@ type Client struct {
 	TimeOut time.Duration
 }
 
+type Response struct {
+	Code    int    `json:"statusCode"`
+	Message string `json:"message"`
+}
+
+func (r *Response) Error() string {
+	return r.Message
+}
+
+func GetStatus(status int) *Response {
+	r := Response{
+		Code:    status,
+		Message: HandleError(status).Error(),
+	}
+	return &r
+}
+
 // HandleError returns error message by status code
 func HandleError(status int) error {
 	var message string
