@@ -20,6 +20,7 @@ const (
 type Config struct {
 	IsProduction bool
 	TimeOut      time.Duration
+	Transport   http.RoundTripper
 }
 
 // IAPClient is an interface to call validation API in App Store
@@ -31,6 +32,7 @@ type IAPClient interface {
 type Client struct {
 	URL     string
 	TimeOut time.Duration
+	Transport   http.RoundTripper
 }
 
 // HandleError returns error message by status code
@@ -97,6 +99,7 @@ func NewWithConfig(config Config) Client {
 	client := Client{
 		URL:     SandboxURL,
 		TimeOut: config.TimeOut,
+		Transport: config.Transport,
 	}
 	if config.IsProduction {
 		client.URL = ProductionURL
@@ -107,8 +110,9 @@ func NewWithConfig(config Config) Client {
 
 // Verify sends receipts and gets validation result
 func (c *Client) Verify(req IAPRequest, result interface{}) error {
-	client := http.Client{
+	client := &http.Client{
 		Timeout: c.TimeOut,
+		Transport: c.Transport,
 	}
 
 	b := new(bytes.Buffer)
