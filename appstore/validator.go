@@ -80,14 +80,9 @@ func HandleError(status int) error {
 
 // New creates a client object
 func New() Client {
-	client := Client{
-		URL:     SandboxURL,
-		TimeOut: time.Second * 5,
-	}
-	if os.Getenv("IAP_ENVIRONMENT") == "production" {
-		client.URL = ProductionURL
-	}
-	return client
+	return NewWithConfig(Config{
+		IsProduction: os.Getenv("IAP_ENVIRONMENT") == "production",
+	})
 }
 
 // NewWithConfig creates a client with configuration
