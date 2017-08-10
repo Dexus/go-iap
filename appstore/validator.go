@@ -20,6 +20,7 @@ const (
 type Config struct {
 	IsProduction bool
 	TimeOut      time.Duration
+	Transport   http.RoundTripper
 }
 
 // IAPClient is an interface to call validation API in App Store
@@ -31,6 +32,7 @@ type IAPClient interface {
 type Client struct {
 	URL     string
 	TimeOut time.Duration
+	Transport   http.RoundTripper
 }
 
 // HandleError returns error message by status code
@@ -50,6 +52,9 @@ func HandleError(status int) error {
 	case 21003:
 		message = "The receipt could not be authenticated."
 
+	case 21004:
+		message = "The shared secret you provided does not match the shared secret on file for your account."
+
 	case 21005:
 		message = "The receipt server is not currently available."
 
@@ -59,8 +64,15 @@ func HandleError(status int) error {
 	case 21008:
 		message = "This receipt is from the production environment, but it was sent to the test environment for verification. Send it to the production environment instead."
 
+	case 21010:
+		message = "This receipt could not be authorized. Treat this the same as if a purchase was never made."
+
 	default:
-		message = "An unknown error occurred"
+		if status >= 21100 && status <= 21199 {
+			message = "Internal data access error."
+		} else {
+			message = "An unknown error occurred"
+		}
 	}
 
 	return errors.New(message)
@@ -68,14 +80,9 @@ func HandleError(status int) error {
 
 // New creates a client object
 func New() Client {
-	client := Client{
-		URL:     SandboxURL,
-		TimeOut: time.Second * 5,
-	}
-	if os.Getenv("IAP_ENVIRONMENT") == "production" {
-		client.URL = ProductionURL
-	}
-	return client
+	return NewWithConfig(Config{
+		IsProduction: os.Getenv("IAP_ENVIRONMENT") == "production",
+	})
 }
 
 // NewWithConfig creates a client with configuration
@@ -87,6 +94,7 @@ func NewWithConfig(config Config) Client {
 	client := Client{
 		URL:     SandboxURL,
 		TimeOut: config.TimeOut,
+		Transport: config.Transport,
 	}
 	if config.IsProduction {
 		client.URL = ProductionURL
@@ -97,8 +105,9 @@ func NewWithConfig(config Config) Client {
 
 // Verify sends receipts and gets validation result
 func (c *Client) Verify(req IAPRequest, result interface{}) error {
-	client := http.Client{
+	client := &http.Client{
 		Timeout: c.TimeOut,
+		Transport: c.Transport,
 	}
 
 	b := new(bytes.Buffer)
